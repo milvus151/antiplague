@@ -1,0 +1,44 @@
+services:
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - file-storing-service
+      - file-analysis-service
+    environment:
+      - FILE_STORING_URL=http://file-storing-service:8082
+      - FILE_ANALYSIS_URL=http://file-analysis-service:8081
+    networks:
+      - antiplague-network
+
+  file-storing-service:
+    build: ./file-storing-service
+    container_name: file-storing-service
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./file-storing-service/uploads:/app/uploads
+      - ./file-storing-service/files.db:/app/files.db
+    networks:
+      - antiplague-network
+
+  file-analysis-service:
+    build: ./file-analysis-service
+    container_name: file-analysis-service
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./file-storing-service/uploads:/app/uploads
+      - ./file-storing-service/files.db:/app/files.db
+    networks:
+      - antiplague-network
+
+networks:
+  antiplague-network:
+    driver: bridge
+
+volumes:
+  uploads:
+  files-data:
