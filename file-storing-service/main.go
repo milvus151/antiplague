@@ -35,7 +35,7 @@ func init() {
 	if err != nil {
 		panic("БД не отвечает: " + err.Error())
 	}
-	fmt.Println("File Storing Service подключен к БД")
+	fmt.Println("file-storing-service подключен к БД")
 	createTable()
 }
 func createTable() {
@@ -53,7 +53,7 @@ func createTable() {
 	if err != nil {
 		panic("Ошибка создания таблицы: " + err.Error())
 	}
-	fmt.Println("Таблица для файлов создана")
+	fmt.Println("Таблица для файлов готова к использованию")
 }
 
 func main() {
@@ -85,13 +85,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := r.ParseMultipartForm(15 << 20)
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка при парсинге формы"}`, http.StatusBadRequest)
+		http.Error(w, `Ошибка при парсинге формы`, http.StatusBadRequest)
 		return
 	}
 	studentID := r.FormValue("student_id")
 	assignmentID := r.FormValue("assignment_id")
 	if studentID == "" || assignmentID == "" {
-		http.Error(w, `{"error": "student_id и assignment_id обязательны"}`, http.StatusBadRequest)
+		http.Error(w, `student_id и assignment_id обязательны`, http.StatusBadRequest)
 		return
 	}
 	file, handler, err := r.FormFile("file")
@@ -115,7 +115,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		".md":   true,
 	}
 	if !supportedExts[strings.ToLower(ext)] {
-		http.Error(w, fmt.Sprintf(`{"error": "Формат %s не поддерживается. Разрешены: txt, go, py, java, cpp, c, h, js, ts, md"}`, ext), http.StatusUnsupportedMediaType)
+		http.Error(w, fmt.Sprintf(`Формат %s не поддерживается. Разрешены: txt, go, py, java, cpp, c, h, js, ts, md`, ext), http.StatusUnsupportedMediaType)
 		return
 	}
 	timestamp := time.Now().Unix()
@@ -130,7 +130,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	abspath, err := filepath.Abs(filepath.Join(uploadsDir, safeFilename))
 	if err != nil {
 		fmt.Println("Ошибка при получении абсолютного пути:", err)
-		http.Error(w, `{"error": "Ошибка при получении пути"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка при получении пути`, http.StatusInternalServerError)
 		return
 	}
 	fmt.Println("Пытаемся создать файл:", abspath)
@@ -138,13 +138,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	dst, err := os.Create(abspath)
 	if err != nil {
 		fmt.Println("Ошибка при создании файла:", err)
-		http.Error(w, `{"error": "Ошибка при создании файла"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка при создании файла`, http.StatusInternalServerError)
 		return
 	}
 	defer dst.Close()
 	_, err = io.Copy(dst, file)
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка при копировании файла"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка при копировании файла`, http.StatusInternalServerError)
 		return
 	}
 	query := `
@@ -153,13 +153,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	`
 	result, err := db.Exec(query, studentID, assignmentID, abspath)
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка при сохранении данных в БД"}`, http.StatusBadRequest)
+		http.Error(w, `Ошибка при сохранении данных в БД`, http.StatusBadRequest)
 		return
 	}
 
 	fileID, err := result.LastInsertId()
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка при получении ID"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка при получении ID`, http.StatusInternalServerError)
 		return
 	}
 
@@ -196,11 +196,11 @@ func getFileHandler(w http.ResponseWriter, r *http.Request) {
 		&file.Status,
 	)
 	if err == sql.ErrNoRows {
-		http.Error(w, `{"error": "Файл не найден"}`, http.StatusNotFound)
+		http.Error(w, `Файл не найден`, http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка при запросе к БД"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка при запросе к БД`, http.StatusInternalServerError)
 		return
 	}
 	json.NewEncoder(w).Encode(file)
@@ -216,7 +216,7 @@ func listFilesHandler(w http.ResponseWriter, r *http.Request) {
 	query := `SELECT id, student_id, assignment_id, file_path, uploaded_at, status FROM files`
 	rows, err := db.Query(query)
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка при запросе к БД"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка при запросе к БД`, http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()

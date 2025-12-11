@@ -1,0 +1,318 @@
+openapi: 3.0.0
+info:
+  title: Antiplague API
+  description: Plagiarism Detection System
+  version: 1.0.0
+  contact:
+    name: Support
+
+servers:
+  - url: http://localhost:8080
+    description: API Gateway (Local)
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if API Gateway is running
+      tags:
+        - System
+      responses:
+        '200':
+          description: Gateway is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "OK"
+                  message:
+                    type: string
+                    example: "API Gateway is running"
+
+  /upload:
+    post:
+      summary: Upload a work for plagiarism analysis
+      description: Upload a file and automatically start plagiarism detection
+      tags:
+        - Files
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - student_id
+                - assignment_id
+                - file
+              properties:
+                student_id:
+                  type: string
+                  example: "std_0013"
+                  description: Student identifier
+                assignment_id:
+                  type: string
+                  example: "task-001"
+                  description: Assignment identifier
+                file:
+                  type: string
+                  format: binary
+                  description: Source code file (.txt, .go, .py, .java, .cpp, .c, .h, .js, .ts, .md)
+      responses:
+        '200':
+          description: File uploaded successfully and analysis started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Файл получен, работа зарегистрирована"
+                  file_id:
+                    type: integer
+                    example: 15
+                  student_id:
+                    type: string
+                    example: "std_0013"
+                  assignment_id:
+                    type: string
+                    example: "task-001"
+                  filename:
+                    type: string
+                    example: "solution.py"
+                  file_path:
+                    type: string
+                    example: "/app/uploads/work_std_0013_task-001_1733867227.py"
+                  analysis_status:
+                    type: string
+                    example: "started"
+        '400':
+          description: Bad request (missing fields or unsupported file format)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '415':
+          description: Unsupported file type
+
+  /files:
+    get:
+      summary: List all uploaded files
+      description: Get a list of all submitted files
+      tags:
+        - Files
+      responses:
+        '200':
+          description: List of files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileInfo'
+
+  /files/{id}:
+    get:
+      summary: Get file details
+      description: Get detailed information about a specific uploaded file
+      tags:
+        - Files
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: File details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileInfo'
+        '404':
+          description: File not found
+
+  /analyze:
+    post:
+      summary: Analyze file for plagiarism
+      description: Start plagiarism analysis for an uploaded file
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_id
+                - file_path
+                - student_id
+                - assignment_id
+              properties:
+                file_id:
+                  type: integer
+                  example: 15
+                file_path:
+                  type: string
+                  example: "/app/uploads/work_std_0013_task-001_1733867227.py"
+                student_id:
+                  type: string
+                  example: "std_0013"
+                assignment_id:
+                  type: string
+                  example: "task-001"
+      responses:
+        '200':
+          description: Analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlagiarismReport'
+        '400':
+          description: Invalid request
+
+  /reports:
+    get:
+      summary: List all plagiarism reports
+      description: Get all plagiarism analysis reports
+      tags:
+        - Reports
+      responses:
+        '200':
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlagiarismReport'
+
+  /reports/{id}:
+    get:
+      summary: Get specific plagiarism report
+      description: Get detailed plagiarism analysis report for a file
+      tags:
+        - Reports
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 5
+      responses:
+        '200':
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlagiarismReport'
+        '404':
+          description: Report not found
+
+  /wordCloud/{id}:
+    get:
+      summary: Generate word cloud visualization
+      description: Get PNG image showing word frequency cloud for a file
+      tags:
+        - Visualization
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 9
+      responses:
+        '200':
+          description: PNG image of word cloud
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+        '503':
+          description: Word cloud service unavailable
+
+components:
+  schemas:
+    FileInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "15"
+        student_id:
+          type: string
+          example: "std_0013"
+        assignment_id:
+          type: string
+          example: "task-001"
+        file_path:
+          type: string
+          example: "/app/uploads/work_std_0013_task-001_1733867227.py"
+        uploaded_at:
+          type: string
+          format: date-time
+          example: "2024-12-10T15:30:27Z"
+        status:
+          type: string
+          enum: ["pending", "analyzing", "completed"]
+          example: "pending"
+
+    PlagiarismReport:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5
+        file_id:
+          type: integer
+          example: 15
+        plagiarism_score:
+          type: number
+          format: float
+          description: Plagiarism percentage (0.0 to 1.0)
+          example: 0.52
+        is_plagiarism:
+          type: boolean
+          description: True if plagiarism_score > 0.5
+          example: true
+        matched_file_id:
+          type: integer
+          description: ID of the most similar file
+          example: 12
+        analysis_state:
+          type: string
+          enum: ["pending", "analyzing", "completed", "skipped", "error"]
+          example: "completed"
+        same_details:
+          type: string
+          example: "Совпадение 52.00% с File ID 12"
+
+tags:
+  - name: System
+    description: System operations
+  - name: Files
+    description: File upload and retrieval
+  - name: Analysis
+    description: Plagiarism analysis operations
+  - name: Reports
+    description: Plagiarism reports
+  - name: Visualization
+    description: Data visualization endpoints

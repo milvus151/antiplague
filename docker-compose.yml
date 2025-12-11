@@ -35,6 +35,19 @@ services:
     networks:
       - antiplague-network
 
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: swagger-ui
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./swagger.yaml:/foo/swagger.yaml
+    environment:
+      SWAGGER_JSON: /foo/swagger.yaml
+      CORS_ALLOWED_ORIGINS: "*"
+    networks:
+      - antiplague-network
+
 networks:
   antiplague-network:
     driver: bridge

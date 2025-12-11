@@ -11,7 +11,6 @@ import (
 
 func main() {
 	http.HandleFunc("/health", healthHandler)
-	/*	http.HandleFunc("/upload", proxyToService("http://file-storing-service:8082/upload"))*/
 	http.HandleFunc("/upload", uploadAndAnalyzeHandler)
 	http.HandleFunc("/files", proxyToService("http://file-storing-service:8082/files"))
 	http.HandleFunc("/files/", proxyToService("http://file-storing-service:8082/files/"))
@@ -25,12 +24,22 @@ func main() {
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status": "OK", "message": "API Gateway is running"}`))
 }
 
 func proxyToService(targetURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		fullURL := targetURL + r.RequestURI[len(getBasePath(targetURL)):]
 		req, err := http.NewRequest(r.Method, fullURL, r.Body)
 		if err != nil {
@@ -72,6 +81,14 @@ func getBasePath(url string) string {
 }
 
 func uploadAndAnalyzeHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 		return

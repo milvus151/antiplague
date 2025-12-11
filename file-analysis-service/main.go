@@ -39,7 +39,7 @@ func init() {
 	if err != nil {
 		panic("Ошибка подключения к БД: " + err.Error())
 	}
-	fmt.Println("Успешно подключились к БД!")
+	fmt.Println("file-analysis-service подключен к БД")
 	createReportsTable()
 }
 
@@ -60,7 +60,7 @@ func createReportsTable() {
 	if err != nil {
 		panic("Ошибка создания таблицы отчётов: " + err.Error())
 	}
-	fmt.Println("Таблица отчётов по плагиату готова")
+	fmt.Println("Таблица для отчётов по плагиату готова к использованию")
 }
 
 func main() {
@@ -92,7 +92,7 @@ func analyzeHandler(w http.ResponseWriter, r *http.Request) {
 	var req AnalysisRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка при парсинге JSON"}`, http.StatusBadRequest)
+		http.Error(w, `Ошибка при парсинге JSON`, http.StatusBadRequest)
 		return
 	}
 	fmt.Printf("Анализ файла: %s (File ID: %d)\n", req.FilePath, req.FileID)
@@ -137,7 +137,7 @@ func analyzeHandler(w http.ResponseWriter, r *http.Request) {
 	newFileContent := string(newFileText)
 	fmt.Printf("Файл прочитан, размер файла: %d символов\n", len(newFileContent))
 
-	plagiarismScore, matchedFileID := comparePlagiarism(newFileContent, req.StudentID, req.FileID)
+	plagiarismScore, matchedFileID := comparePlagiarism(newFileContent, req.StudentID, req.AssignmentID, req.FileID)
 	isPlagiarism := plagiarismScore > 0.5
 	fmt.Printf("Результат плагиата: %.2f%% \n ", plagiarismScore*100)
 
@@ -187,14 +187,14 @@ func SaveReport(fileID int, score float64, isPlagiarism bool, matchedFileID int,
 	return report
 }
 
-func comparePlagiarism(newFileContent string, curStudentID string, curFileID int) (float64, int) {
+func comparePlagiarism(newFileContent string, curStudentID string, curAssignmentID string, curFileID int) (float64, int) {
 	query := `
 	SELECT id, file_path, student_id 
 	FROM files 
-	WHERE id != ? AND student_id != ?
+	WHERE id != ? AND student_id != ? AND assignment_id = ?
 	ORDER BY id ASC
 	`
-	rows, err := db.Query(query, curFileID, curStudentID)
+	rows, err := db.Query(query, curFileID, curStudentID, curAssignmentID)
 	if err != nil {
 		fmt.Println("Ошибка при запросе к БД", err)
 		return 0, 0
@@ -281,11 +281,11 @@ func getReportHandler(w http.ResponseWriter, r *http.Request) {
 		&report.SameDetails,
 	)
 	if err == sql.ErrNoRows {
-		http.Error(w, `{"error": "Отчёт не найден"}`, http.StatusNotFound)
+		http.Error(w, `Отчёт не найден`, http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка при запросе к БД"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка при запросе к БД`, http.StatusInternalServerError)
 		return
 	}
 	report.IsPlagiarism = isPlagiarismInt == 1
@@ -304,7 +304,7 @@ func getAllReportsHandler(w http.ResponseWriter, r *http.Request) {
 	`
 	rows, err := db.Query(query)
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка при запросе к БД"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка при запросе к БД`, http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -335,7 +335,8 @@ func getWordCloudHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only GET method is supported.", http.StatusMethodNotAllowed)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"wordcloud.png\"")
 	fileID := r.URL.Path[len("/wordcloud/"):]
 	var filePath string
 	query := `
@@ -344,16 +345,16 @@ func getWordCloudHandler(w http.ResponseWriter, r *http.Request) {
 	row := db.QueryRow(query, fileID)
 	err := row.Scan(&filePath)
 	if err == sql.ErrNoRows {
-		http.Error(w, `{"error": "Файл не найден"}`, http.StatusNotFound)
+		http.Error(w, `Файл не найден`, http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка при запросе к БД"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка при запросе к БД`, http.StatusInternalServerError)
 		return
 	}
 	fileContent, err := os.ReadFile(filePath)
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка чтения файла"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка чтения файла`, http.StatusInternalServerError)
 		return
 	}
 	quickchartURL := "https://quickchart.io/wordcloud"
@@ -371,19 +372,18 @@ func getWordCloudHandler(w http.ResponseWriter, r *http.Request) {
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка формирования запроса"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка формирования запроса`, http.StatusInternalServerError)
 		return
 	}
 	resp, err := http.Post(quickchartURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		http.Error(w, `{"error": "Ошибка создания облака слов"}`, http.StatusInternalServerError)
+		http.Error(w, `Ошибка создания облака слов`, http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		http.Error(w, `{"error": "Сервис облака слов недоступен"}`, http.StatusServiceUnavailable)
+		http.Error(w, `Сервис для создания облака слов недоступен`, http.StatusServiceUnavailable)
 		return
 	}
-	w.Header().Set("Content-Type", "image/json")
 	io.Copy(w, resp.Body)
 }
